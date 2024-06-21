@@ -147,7 +147,7 @@ fn main() {
                 if rm == 0b110 {
                     // Direct Access
                     let (d16_lo, d16_hi) = read_two_bytes!(input, processed_count);
-                    let d16 = ((d16_hi as u16) << 8) + d16_lo as u16;
+                    let d16 = (((d16_hi as u16) << 8) + d16_lo as u16) as i16;
 
                     let (dst, src) = if d {
                         // reg contains destination register. Memory to register move
@@ -185,18 +185,34 @@ fn main() {
                 // 8-bit displacement
 
                 // displacement byte
-                let d8 = read_byte!(input, processed_count);
+                let d8 = read_byte!(input, processed_count) as i8 as i16; // sign extend to 16-bits
 
                 let (dst, src) = if d {
                     // reg contains destination register. Memory to register move
                     (
                         register_name(reg, w).to_owned(),
-                        format!("[{} + {}]", address_register_part(rm), d8),
+                        if d8 > 0 {
+                            format!("[{} + {}]", address_register_part(rm), d8)
+                        } else if d8 < 0 {
+                            // multiplying with -1 wont overflow because before being a word, it
+                            // was originally a negative signed byte
+                            format!("[{} - {}]", address_register_part(rm), -1 * d8)
+                        } else {
+                            format!("[{}]", address_register_part(rm))
+                        },
                     )
                 } else {
                     // reg contains source register. Register to memory move
                     (
-                        format!("[{} + {}]", address_register_part(rm), d8),
+                        if d8 > 0 {
+                            format!("[{} + {}]", address_register_part(rm), d8)
+                        } else if d8 < 0 {
+                            // multiplying with -1 wont overflow because before being a word, it
+                            // was originally a negative signed byte
+                            format!("[{} - {}]", address_register_part(rm), -1 * d8)
+                        } else {
+                            format!("[{}]", address_register_part(rm))
+                        },
                         register_name(reg, w).to_owned(),
                     )
                 };
@@ -207,7 +223,7 @@ fn main() {
 
                 // displacement byte
                 let (d16_lo, d16_hi) = read_two_bytes!(input, processed_count);
-                let d16 = ((d16_hi as u16) << 8) + d16_lo as u16;
+                let d16 = (((d16_hi as u16) << 8) + d16_lo as u16) as i16;
 
                 let (dst, src) = if d {
                     // reg contains destination register. Memory to register move
@@ -241,7 +257,7 @@ fn main() {
                 if rm == 0b110 {
                     // Direct Access
                     let (d16_lo, d16_hi) = read_two_bytes!(input, processed_count);
-                    let d16 = ((d16_hi as u16) << 8) + d16_lo as u16;
+                    let d16 = (((d16_hi as u16) << 8) + d16_lo as u16) as i16;
                     let dst = format!("[{}]", d16); // Direct Access
 
                     if w {
@@ -269,23 +285,39 @@ fn main() {
                 }
             } else if mode == 0b01 {
                 // 8-bit displacement
-                let d8 = read_byte!(input, processed_count);
+                let d8 = read_byte!(input, processed_count) as i8 as i16;
                 if w {
                     // next two bytes contain immed16
                     let data = read_two_bytes!(input, processed_count);
                     let immed16 = ((data.1 as u16) << 8) + data.0 as u16;
-                    let dst = format!("{} + {}", address_register_part(rm), d8);
+                    let dst = if d8 > 0 {
+                        format!("[{} + {}]", address_register_part(rm), d8)
+                    } else if d8 < 0 {
+                        // multiplying with -1 wont overflow because before being a word, it
+                        // was originally a negative signed byte
+                        format!("[{} - {}]", address_register_part(rm), -1 * d8)
+                    } else {
+                        format!("[{}]", address_register_part(rm))
+                    };
                     println!("mov [{}], word {}", dst, immed16);
                 } else {
                     // next one byte contains immed8
                     let immed8 = read_byte!(input, processed_count);
-                    let dst = format!("{} + {}", address_register_part(rm), d8);
+                    let dst = if d8 > 0 {
+                        format!("[{} + {}]", address_register_part(rm), d8)
+                    } else if d8 < 0 {
+                        // multiplying with -1 wont overflow because before being a word, it
+                        // was originally a negative signed byte
+                        format!("[{} - {}]", address_register_part(rm), -1 * d8)
+                    } else {
+                        format!("[{}]", address_register_part(rm))
+                    };
                     println!("mov [{}], byte {}", dst, immed8);
                 }
             } else if mode == 0b10 {
                 // 16-bit displacement
                 let (d16_lo, d16_hi) = read_two_bytes!(input, processed_count);
-                let d16 = ((d16_hi as u16) << 8) + d16_lo as u16;
+                let d16 = (((d16_hi as u16) << 8) + d16_lo as u16) as i16;
                 if w {
                     // next two bytes contain immed16
                     let data = read_two_bytes!(input, processed_count);
